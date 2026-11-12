@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <title>Fieldnotes · Travel Planner Pro</title>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+  <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand"><span class="logo">F<span class="logo-dot">•</span></span><div><strong>Fieldnotes</strong><small>TRAVEL PLANNER PRO <b>V1.1</b></small></div></div>
+    <div class="trip-picker"><label for="tripSelect">Trip</label><select id="tripSelect" aria-label="Choose trip"></select><button id="newTrip" class="icon-btn" title="Create trip">＋</button><button id="editTrip" class="icon-btn" title="Edit current trip">✎</button></div>
+    <div class="header-actions"><span id="saveStatus" class="save-status">Saved locally</span><button id="undoBtn" class="icon-btn" title="Undo (Ctrl+Z)">↶</button><button id="redoBtn" class="icon-btn" title="Redo (Ctrl+Shift+Z)">↷</button><button id="themeBtn" class="icon-btn" title="Toggle theme">◐</button><button id="exportBtn" class="button secondary">Export / Backup</button><button id="importBtn" class="icon-btn" title="Restore backup">⇧</button><input id="importFile" type="file" accept=".json,.zip,application/json,application/zip" hidden></div>
+  </header>
+  <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+  <main class="workspace" id="workspace">
+    <section id="plannerPanel" class="planner-panel" aria-label="Itinerary planner">
+      <div class="panel-top"><div class="eyebrow">YOUR ITINERARY</div><div id="tripTitle" class="panel-title">My Trip</div><div id="tripDates" class="meta"></div></div>
+      <div class="schedule-controls"><div class="views" role="group" aria-label="Calendar view"><button data-view="day">Day</button><button data-view="week" class="active">Week</button><button data-view="agenda">Agenda</button></div><div class="date-nav"><button id="prevDate" class="icon-btn" aria-label="Previous">‹</button><button id="todayBtn" class="button subtle">Today</button><button id="nextDate" class="icon-btn" aria-label="Next">›</button><input id="focusDate" type="date" aria-label="Selected date"></div></div>
+      <div id="calendarHeading" class="calendar-heading"></div>
+      <div id="calendar" class="calendar-scroll" aria-label="Trip calendar"></div>
+      <section class="backlog"><div class="backlog-header"><div><b>Places Library</b> <span id="placeCount" class="count">0</span><div class="meta">Drag a place onto the calendar, or use + Plan</div></div><button id="addPlaceManual" class="button primary small">+ Place</button></div><div class="filterline"><input id="placeFilter" placeholder="Search saved places…" aria-label="Search saved places"/><select id="placeCategoryFilter" aria-label="Filter places by category"><option value="all">All categories</option><option>Sightseeing</option><option>Dining</option><option>Hotel</option><option>Transport</option><option>Other</option></select></div><div id="placeList" class="places-list"></div></section>
+    </section>
+    <div id="splitter" class="splitter" role="separator" aria-orientation="vertical" aria-label="Resize panels" tabindex="0"></div>
+    <section id="mapPanel" class="map-panel" aria-label="Interactive map">
+      <div class="map-top"><div class="map-search"><span class="search-icon">⌕</span><input id="searchPlace" aria-label="Search map locations" placeholder="Search for a place or coordinates…"><button id="searchBtn" class="button primary small">Search</button></div><select id="mapFilter" aria-label="Map place filter"><option value="all">All places</option><option value="day">Selected day</option><option value="unscheduled">Unscheduled</option><option value="area">Selected area</option></select></div>
+      <div class="map-canvas" id="mapCanvas">
+        <div id="map" aria-label="Geographic map"></div>
+        <div id="mapFallback" class="map-fallback" hidden><b>Map service unavailable</b><p>Internet access is needed to load MapLibre and OpenFreeMap. Your saved trips, places, areas and itinerary remain available.</p><button id="retryMap" class="button">Retry map</button></div>
+        <div id="mapDrawSurface" aria-label="Draw geographic selection rectangle"><div id="mapDrawRect"></div><span class="draw-instructions">Drag to select a geographic area · Esc to cancel</span></div>
+        <div class="map-tools"><button id="navMode" class="tool-btn active" title="Navigate map">✥ <span>Navigate</span></button><button id="pinMode" class="tool-btn" title="Click map to add place">⌖ <span>Add pin</span></button><button id="areaMode" class="tool-btn" title="Draw map area">▱ <span>Select Map Area</span></button><button id="fitPins" class="tool-btn" title="Fit visible pins">⤢ <span>Fit pins</span></button></div>
+        <div id="mapHint" class="map-hint">Map ready · Navigate mode</div>
+        <div id="searchResults" class="search-results" hidden></div>
+      </div>
+      <section class="areas-panel"><div class="areas-heading"><div><b>Saved Map Areas</b> <span id="areaCount" class="count">0</span><p class="meta">Real geographic bounds · Locations stay linked to their coordinates</p></div><button id="clearArea" class="button subtle small">Show all</button></div><div id="areaList" class="area-list"></div><div id="areaPlaces" class="area-places" hidden></div></section>
+      <div class="map-footer"><span id="coordsInfo">Lat — · Lng —</span><span>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a> · MapLibre / OpenFreeMap</span></div>
+    </section>
+  </main>
+  <nav class="mobile-tabs" aria-label="Mobile tabs"><button id="mobileItinerary" class="active">▤ Itinerary</button><button id="mobileMap">◎ Map</button></nav>
+  <div id="modalRoot" class="modal-root" hidden><div class="modal-backdrop" data-close-modal="1"></div><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-heading"><h2 id="modalTitle"></h2><button class="icon-btn" data-close-modal="1" aria-label="Close">×</button></div><div id="modalBody"></div></div></div>
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+  <script src="app.js" defer></script>
+</body>
+</html>
