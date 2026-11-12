@@ -1,65 +1,63 @@
-# Fieldnotes Travel Planner Pro V1.3 — Option B
+# Fieldnotes Travel Planner Pro V1.4 — Browser-Only
 
-**Direct browser launch on Windows. No Python, Node.js, installer, terminal command, or local server is required.**
+## Quick start (Windows Edge / Chrome)
 
-## Quick start / 開啟方法
+1. Extract the complete ZIP.
+2. Keep **index.html**, **app.js**, and **styles.css** in the same folder.
+3. Double-click **index.html** to open in Edge or Chrome. **No Python, Node.js, terminal commands, or locally installed server** are required.
+4. For Google Maps, choose **Map → Google Maps → API Setup**. The original **Interactive Map** remains the default and needs no Google API key.
 
-1. Download and **extract the entire ZIP** into a folder.
-2. Keep `index.html`, `app.js`, and `styles.css` in **the same folder**.
-3. Double-click `index.html` and open it with **Microsoft Edge or Chrome**.
-4. Internet is necessary for the existing MapLibre/OpenFreeMap basemap and live place search; the V1.3 timetable editing and PNG rendering use browser APIs.
+The app is *browser-only*, not fully offline. MapLibre/OpenFreeMap map layers, geographic search, and Google Maps Embed require an internet connection. Browsers or networks may block some third-party resources.
 
-**重要：** 轉版本前，請先喺 V1.2 用 **Export / Backup → Full JSON Backup** 保存資料。然後喺 V1.3 用右上角 **⇧ Restore Backup** 還原。
+## New in V1.4
 
-Local `file://` storage may be denied or isolated by browsers, versions, device policies, or file paths. Watch the save indicator. Back up before switching folders, clearing browser data, using incognito mode, or moving to another device. The app does not provide cloud sync.
+The map pane now supports a choice of **Interactive Map (MapLibre + OpenFreeMap)** and **Google Maps (official Maps Embed API)**. This is a *viewer-only* Google mode and does not replace the editable map:
 
-For iPhone/iPad Safari, use HTTPS static hosting for these three static files. Opening `index.html` from the iOS Files preview is not a reliably supported runtime. No server-side application or Python is needed, but a hosted origin is recommended for persistent storage and service loading.
+- **Interactive Map**: original search, draggable georeferenced custom pins, selectable and saved WGS84 rectangle areas, pin filters, zoom/pan, Map/calendar links. This is also the mode for adding or moving pins.
+- **Google Maps**: `Destination` (trip destination or a default reference view), `Selected place` (a saved place's exact latitude/longitude), and `Directions` (between two different saved places). Standard zoom/pan is handled by the official Google iframe. **Open Maps** opens the current location or route on the Google Maps website.
+- Selecting an activity with a linked saved place while Google mode is active updates the iframe location to that place. Activities with no linked place use the trip destination; existing user-entered Google Maps URLs remain independent.
+- Clicking a saved map area while Google mode is active returns to **Interactive Map**, preserving the area drawing and fit-to-bounds workflow. Google Maps Embed cannot display the app's complete editable pin/area layers.
+- A missing API key displays setup guidance and never blocks timetable data, print/export, or the original map.
 
-## V1.3 Feature A — Activity colour override
+All V1.3 colour overrides, Select / Move-Resize modes, 1–15-day timetable, editable Categories, Google Maps event links, three-pane layout, PNG/PDF print, and backup/restore are retained.
 
-Open an existing activity (select it and press **Edit**, or double-click) or add one with **+ Activity**. The Activity Editor now offers:
+## Google Maps Embed API configuration
 
-- **Use category colour** (default; inherits future category colour changes).
-- **Custom override** with 16 selectable swatches, native colour picker, and a `#RRGGBB` hexadecimal input.
-- Live preview, validation, and **Reset to Category Colour**.
+1. Create or select your [Google Cloud project](https://console.cloud.google.com/google/maps-apis).
+2. Link a billing account and enable **Maps Embed API**.
+3. Create a **separate Maps Embed API key** in Google Cloud Console > APIs & Services > Credentials.
+4. Restrict **API restrictions** to **Maps Embed API only**. When deploying to an HTTPS site, also apply **Websites / HTTP referrer restrictions** to the authorised site origins, as recommended by Google.
+5. In Fieldnotes, switch to **Google Maps**, choose **API Setup**, paste the key, and save. If the map fails, check key restrictions, enabled API, billing, browser console, connectivity, and embedded content restrictions.
 
-A custom colour persists when activities are moved, resized, duplicated, backed up, or when their category colour changes. Events migrated from V1.2 with a valid legacy `color` value keep their custom colour. Existing events without a legacy override inherit their category's colour.
+Official references:
+- https://developers.google.com/maps/documentation/embed/get-started
+- https://developers.google.com/maps/documentation/embed/embedding-map
+- https://developers.google.com/maps/documentation/embed/usage-and-billing
+- https://developers.google.com/maps/api-security-best-practices
 
-## V1.3 Feature B — Select and Move modes
+**Key and security notes**
 
-Above the timetable, use:
+- The key is passed in the iframe URL and is therefore **browser-visible**, not a private server secret. **Do not paste an unrestricted key.**
+- Fieldnotes stores the key in this browser's localStorage when permitted; if denied, it is usable only for the current page session. The key is **not** included in JSON or ZIP trip backups, so you must configure it separately after restoring on another browser.
+- **`file://` caveat:** Browsers may omit HTTP `Referer` for locally opened files, which can cause a **website-restricted** Maps key to fail. The safe/recommended path for dependable Google Maps viewing is to host these three static files on **HTTPS** (GitHub Pages or an approved internal static host). This still needs no Python or application server. Do not loosen key restrictions merely to make local files work.
+- Maps Embed requests currently have no usage charge under Google's published pricing, **but require an API key and billing setup**. Other Google Cloud APIs can have charges if separately enabled/used.
+- Google Maps Embed is cross-origin; Fieldnotes **cannot observe arbitrary clicks inside it, edit its pins or capture its tiles into timetable exports**. The existing MapLibre map is the editing tool; timetable PNG/PDF never includes map imagery.
 
-- **Select** (default). Click/tap an activity to select and inspect it. The inline details bar offers Edit, Duplicate, Colour, Delete, and Deselect. Dragging in Select mode does not change dates or times. Click an empty time slot, press Escape, or use × to deselect. Double-click/tap twice to edit; Enter on a focused event opens the editor. Delete or Backspace when the activity is selected requests deletion confirmation. Input fields preserve their normal keyboard behaviour.
-- **Move / Resize**. Drag activity bodies to shift start time/day, or drag their upper/lower handles to change duration. V1.2 snapping remains unchanged. Mobile users can always edit the date/time fields directly in the Activity Editor.
+## Backup & upgrade from V1.3
 
-The last interaction mode is saved per trip. Data edits, undo/redo, map/calendar links and original activity metadata are preserved.
+1. In V1.3: **Export / Backup → Full JSON Backup**.
+2. Open V1.4 and choose **Restore Backup (⇧)**.
+3. Confirm after exporting any existing V1.4 trip data you want to keep.
+4. The V1.3 file is migrated without changing existing places, event IDs, coordinates, category IDs, map areas, or panel layout. `mapProvider` defaults to `openfree` for V1.3 files.
+5. The appVersion is **1.4.0**. The JSON schema stays **3** because the new map preferences are backward-compatible optional fields.
 
-## V1.3 Feature C — Timetable PNG / PDF / Print
+`file://` browser storage is not guaranteed to persist across browser policies, folder moves, devices, or different URLs. **Use JSON backups regularly.** No cloud sync is provided.
 
-Use the **PNG** or **PDF** toolbar control to open the timetable export dialog, or access it through **Export / Backup → Timetable PNG / PDF / Print**.
+For iOS Safari, HTTPS static hosting is recommended instead of opening a local HTML preview in Files.
 
-Settings include:
+## Known limitations and testing
 
-- Scope: current visible timetable, chosen date range, or entire trip.
-- Paper: A4, A3, Letter; portrait or landscape.
-- Scale/density: Fit to Width, Fit to Page, or custom density percentage (60–160%). Adjusting density changes the number of day columns per sheet to keep them legible.
-- Optional trip title, dates, category legend, activity notes appendix, and print date.
-- Scrolling on-screen preview of the first 15 pages (if more, **all** pages are still included in export).
-
-**Download PNG** generates an actual `.png` image using the same vector timetable as preview. Several timetable pages are stacked into one image, with multi-image ZIP (requires the existing JSZip CDN) for large ranges. If ZIP is unavailable, the browser attempts separate PNG-part downloads; it may ask permission to download multiple files. PNG/PDF never include the map or map tiles.
-
-**Print / Save as PDF** opens a **dedicated, print-only browser tab** and launches the system print dialog. Choose **Save as PDF** as your destination to get a PDF. PDF saving is **not automatic**; the browser controls the final save. Page size, orientation, column pagination, event colours and overlaps follow the preview. The optional notes appendix includes full user-entered activity notes. Very short or unusually long-title activities also receive a supplementary detail list if their grid labels cannot fit readably.
-
-The export operation does not alter your trip dates, timetable view, calendar event positions, map or panels.
-
-## Browser and functionality notes
-
-- All V1.2 timetable / category / workspace / Places Library / map functions are retained. **No V1.3 map engine or provider changes.**
-- Printing must be allowed to open a new tab / popup. If blocked, enable pop-ups for the app page then try again.
-- Some printers may need **Print backgrounds** enabled to preserve solid colour blocks, depending on the browser/print destination; print CSS requests exact colours.
-- All generated dates/times are based on the trip's saved local date/time fields, without pretending to fetch live travel data.
-- Maximum single export range: 366 days to avoid browser memory/performance overload. Large exports may require ZIP packaging or permission to download multiple images.
-- Browser-only file launch and full persistence after reload were **not verified** under an unrestricted desktop browser environment here: the isolated test runner blocks `file://` navigation and cross-origin map networking. Direct UI, PDF and PNG logic were tested in an isolated browser page using the same JavaScript.
-- No new external JavaScript libraries were added for PNG or PDF. Existing MapLibre CDN and optional JSZip for ZIP backups/paged PNGs remain as in V1.2.
-
-Read `CHANGELOG_V1_3.md` and `TEST_RESULTS_V1_3.md` for exact changes, migration and validation.
+- This release was tested with local Chromium using inline V1.4 HTML/CSS/JavaScript and a **mocked** Google iframe response. Official URL generation and UI workflows were verified; **a live Google Embed API key / actual map tile delivery were not verified**.
+- Due to test-environment restrictions, persistence on a normal same-origin HTTPS site, local `file://` navigation, mobile touch, and live MapLibre rendering were not verifiable. See TEST_RESULTS_V1_4.md.
+- Google Maps directions are rendered by the provider with `mode=driving` when two saved place coordinates are chosen; route conditions and travel time are Google's output, not a guarantee from Fieldnotes.
+- This release did not implement Google Maps JS API, Google location search within the app, custom Google iframe pins, or map export. Such functionality is outside the supplied Maps Embed API scope.

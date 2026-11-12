@@ -1,6 +1,6 @@
 (() => {
 'use strict';
-const APP_VERSION='1.3.0',SCHEMA_VERSION=3,DB_NAME='fieldnotes-travel-planner',DB_STORE='state',HOUR=48;
+const APP_VERSION='1.4.0',SCHEMA_VERSION=3,DB_NAME='fieldnotes-travel-planner',DB_STORE='state',HOUR=48;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pad=n=>String(n).padStart(2,'0');
@@ -20,6 +20,7 @@ const categoryColor=c=>({Sightseeing:'#3478e9',Dining:'#0e9a85',Hotel:'#9063d6',
 const clone=o=>structuredClone(o);
 const defaultState=()=>({schemaVersion:SCHEMA_VERSION,appVersion:APP_VERSION,trips:[],places:[],events:[],areas:[],categories:[],prefs:{tripId:null,selectedDate:dateStr(new Date()),view:'week',theme:window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light',mapFilter:'all',selectedAreaId:null,panelWidth:46,mobileTab:'itinerary',mapViews:{}}});
 let lastActivityTap=null,state=defaultState(),undo=[],redo=[],map=null,markers=new Map(),areaLayers=[],previewMarker=null,selectedPlaceId=null,selectedEventId=null,searchResults=[],pendingLocation=null,mapMode='navigate',drawing=null,requestTimer=0,persistTimer=0,noticeTimer=0,backendAvailable=false,lastSearchAt=0,dbPromise=null,activeActivityDrag=null,dragSuppressUntil=0;
+let googleApiKey=readGoogleApiKey(),lastGoogleEmbedUrl='',googleEmbedOpenUrl='https://www.google.com/maps';
 
 function getDb(){if(!dbPromise)dbPromise=new Promise((resolve,reject)=>{if(!('indexedDB' in window))return reject(new Error('IndexedDB unavailable'));const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>req.result.createObjectStore(DB_STORE);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)});return dbPromise}
 async function loadState(){
@@ -31,7 +32,7 @@ async function loadState(){
 }
 function normalize(v){
  if(!v||!Array.isArray(v.trips)||!Array.isArray(v.places)||!Array.isArray(v.events)||!Array.isArray(v.areas)||!v.prefs||typeof v.prefs!=='object')throw Error('Invalid backup structure');
- if(![1,2,3].includes(+v.schemaVersion))throw Error('Unsupported backup schema (V1.0–V1.3 accepted)');
+ if(![1,2,3].includes(+v.schemaVersion))throw Error('Unsupported backup schema (V1.0–V1.4 accepted)');
  const b=defaultState(),n={...b,...v,trips:clone(v.trips),places:clone(v.places),events:clone(v.events),areas:clone(v.areas),categories:Array.isArray(v.categories)?clone(v.categories):[],prefs:{...b.prefs,...v.prefs,mapViews:v.prefs.mapViews||{}}};
  ensureModelDefaults(n);n.schemaVersion=SCHEMA_VERSION;n.appVersion=APP_VERSION;return n;
 }
@@ -60,7 +61,7 @@ const DEFAULT_ACTIVITY_CATS=[
  ['Transport','#dc8931','✈'],['Shopping','#d05b91','🛍'],['Activity','#318eaf','★'],
  ['Free Time','#7d8795','☕'],['Other','#6b7c94','●']
 ];
-function defaultTripUI(start){return{startDate:start,visibleDays:7,snapMinutes:15,layout:{places:20,timetable:45,map:35},showPlaces:true,showMap:true,timetableMode:'select',exportSettings:defaultExportSettings()}}
+function defaultTripUI(start){return{startDate:start,visibleDays:7,snapMinutes:15,layout:{places:20,timetable:45,map:35},showPlaces:true,showMap:true,timetableMode:'select',mapProvider:'openfree',googleMapView:'destination',googlePlaceId:'',googleOriginId:'',googleDestinationId:'',exportSettings:defaultExportSettings()}}
 function defaultExportSettings(){return{scope:'visible',from:'',to:'',pageSize:'A4',orientation:'landscape',scaleMode:'fit-page',customScale:100,showTitle:true,showDates:true,showLegend:true,showNotes:false,showPrintDate:false}}
 function ensureModelDefaults(n){
  if(!Array.isArray(n.categories))n.categories=[];
@@ -69,6 +70,8 @@ function ensureModelDefaults(n){
    if(!t.ui){base.startDate=t.id===n.prefs.tripId?monday(n.prefs.selectedDate||base.startDate):base.startDate;}
    t.ui={...base,...(t.ui||{}),layout:{...base.layout,...(t.ui?.layout||{})},exportSettings:{...base.exportSettings,...(t.ui?.exportSettings||{})}};
    if(!['select','move'].includes(t.ui.timetableMode))t.ui.timetableMode='select';
+   if(!['openfree','google'].includes(t.ui.mapProvider))t.ui.mapProvider='openfree';
+   if(!['destination','selected','directions'].includes(t.ui.googleMapView))t.ui.googleMapView='destination';
    if(!/^\d{4}-\d{2}-\d{2}$/.test(t.ui.startDate))t.ui.startDate=t.startDate;
    t.ui.visibleDays=Math.min(15,Math.max(1,Math.floor(+t.ui.visibleDays||7)));
    if(![5,10,15,30,60].includes(+t.ui.snapMinutes))t.ui.snapMinutes=15;
@@ -136,7 +139,7 @@ function wireSplitter(id){const el=$(id);let start=null;
 }
 function setPref(k,v,r=true){state.prefs[k]=v;scheduleSave();if(r)renderAll();refreshMap()}
 
-function renderAll(){const t=trip();if(!t)return;const sel=$('tripSelect');sel.innerHTML=state.trips.map(q=>`<option value="${esc(q.id)}" ${q.id===t.id?'selected':''}>${q.archived?'[Archived] ':''}${esc(q.name)}</option>`).join('');$('tripTitle').textContent=t.name;$('tripDates').textContent=`${prettyDate(t.startDate)} – ${prettyDate(t.endDate)} · ${t.timezone}${t.destination?' · '+t.destination:''}`;const week=state.prefs.view==='week';$('focusDate').value=week?getTripUI().startDate:state.prefs.selectedDate;$('dateControlLabel').textContent=week?'Start date':'Date';$('focusDate').setAttribute('aria-label',week?'Timetable start date':'Selected date');$('visibleDays').value=getTripUI().visibleDays;$('daysControl').hidden=!week;$('snapMinutes').value=getTripUI().snapMinutes;document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===state.prefs.view));$('mapFilter').value=state.prefs.mapFilter;$('placeCount').textContent=tripPlaces().length;$('areaCount').textContent=tripAreas().length;$('undoBtn').disabled=!undo.length;$('redoBtn').disabled=!redo.length;$('scheduleUndoBtn').disabled=!undo.length;$('scheduleRedoBtn').disabled=!redo.length;updateModeButtons();setWorkspaceLayout();renderCalendar();renderSelectedActivity();renderPlaces();renderAreas()}
+function renderAll(){const t=trip();if(!t)return;const sel=$('tripSelect');sel.innerHTML=state.trips.map(q=>`<option value="${esc(q.id)}" ${q.id===t.id?'selected':''}>${q.archived?'[Archived] ':''}${esc(q.name)}</option>`).join('');$('tripTitle').textContent=t.name;$('tripDates').textContent=`${prettyDate(t.startDate)} – ${prettyDate(t.endDate)} · ${t.timezone}${t.destination?' · '+t.destination:''}`;const week=state.prefs.view==='week';$('focusDate').value=week?getTripUI().startDate:state.prefs.selectedDate;$('dateControlLabel').textContent=week?'Start date':'Date';$('focusDate').setAttribute('aria-label',week?'Timetable start date':'Selected date');$('visibleDays').value=getTripUI().visibleDays;$('daysControl').hidden=!week;$('snapMinutes').value=getTripUI().snapMinutes;document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===state.prefs.view));$('mapFilter').value=state.prefs.mapFilter;$('placeCount').textContent=tripPlaces().length;$('areaCount').textContent=tripAreas().length;$('undoBtn').disabled=!undo.length;$('redoBtn').disabled=!redo.length;$('scheduleUndoBtn').disabled=!undo.length;$('scheduleRedoBtn').disabled=!redo.length;updateModeButtons();setWorkspaceLayout();renderCalendar();renderSelectedActivity();renderPlaces();renderAreas();syncGoogleMapUI()}
 function updateModeButtons(){const select=getTripUI().timetableMode!=='move';$('selectModeBtn').classList.toggle('active',select);$('moveModeBtn').classList.toggle('active',!select);$('selectModeBtn').setAttribute('aria-pressed',String(select));$('moveModeBtn').setAttribute('aria-pressed',String(!select));$('calendar').classList.toggle('is-select-mode',select)}
 function renderSelectedActivity(){
  const el=$('selectedActivityBar'),e=tripEvents().find(x=>x.id===selectedEventId);
@@ -283,6 +286,97 @@ const MAP_STYLE='https://tiles.openfreemap.org/styles/liberty';
 const asLngLat=p=>[+p.lng,+p.lat];
 const boxBounds=a=>[[+a.west,+a.south],[+a.east,+a.north]];
 function mapStatus(message){$('mapHint').textContent=message}
+
+// V1.4: An optional Google Maps iframe viewer. It does not replace MapLibre,
+// does not inspect cross-origin iframe content, and never edits geographic pins.
+// The API key is browser-visible by design, stored outside exported trip backups.
+function readGoogleApiKey(){try{return localStorage.getItem('fieldnotes-travel-google-embed-key')||''}catch{return ''}}
+function writeGoogleApiKey(key){googleApiKey=key;try{if(key)localStorage.setItem('fieldnotes-travel-google-embed-key',key);else localStorage.removeItem('fieldnotes-travel-google-embed-key');return true}catch{return false}}
+function googlePlaceQuery(p){if(p&&validCoords(p.lat,p.lng))return `${Number(p.lat).toFixed(7)},${Number(p.lng).toFixed(7)}`;return ''}
+function googleFullMapURL(mode,origin='',destination=''){
+ if(mode==='directions'&&origin&&destination)return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+ return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(origin||destination||trip()?.destination||'')}`;
+}
+function openGoogleSetup(){
+ const fromFile=location.protocol==='file:';
+ const body=`<div class="form-grid"><div class="field full"><label for="f_googleEmbedKey">Google Maps Embed API key</label><input id="f_googleEmbedKey" name="googleEmbedKey" type="password" autocomplete="off" spellcheck="false" value="${esc(googleApiKey)}" placeholder="Paste your Maps Embed API key" maxlength="200"></div></div>
+ <div class="muted-warning">Create a Google Cloud project, enable <b>Maps Embed API</b> and billing, then create a separate API key restricted to <b>Maps Embed API only</b>. For a hosted HTTPS site, also restrict the key to its authorised website referrers. Google Maps Embed currently has no per-request usage charge, but Google Cloud billing setup is still required.<br><br><b>Security:</b> This browser key is visible in iframe requests and is not a private secret. It is stored on this browser only and <b>excluded from JSON/ZIP backups</b>. Do not enter an unrestricted key.</div>
+ ${fromFile?'<div class="muted-warning"><b>Local file warning:</b> file:// pages may not send an HTTP Referer. Website-restricted Google keys may fail here. For dependable Google Maps loading, use an HTTPS static host (no Python or local server required).</div>':''}
+ <p><a href="https://console.cloud.google.com/google/maps-apis" target="_blank" rel="noopener noreferrer">Open Google Cloud Maps Platform</a> · <a href="https://developers.google.com/maps/documentation/embed/get-started" target="_blank" rel="noopener noreferrer">Official setup guide</a></p>
+ <button type="button" id="clearGoogleEmbedKey" class="button danger small">Remove saved API key</button>`;
+ showModal('Google Maps Embed API — Setup',body,f=>{
+  const key=String(f.get('googleEmbedKey')||'').trim();
+  if(key&&!/^[A-Za-z0-9_-]{12,200}$/.test(key))throw Error('Invalid API key format. Paste a Maps Embed API key.');
+  const saved=writeGoogleApiKey(key);syncGoogleMapUI();toast(key?(saved?'Google Maps API key saved in this browser':'Key applied for this session; local browser storage unavailable'):'Google Maps API key cleared');
+ });
+ $('clearGoogleEmbedKey').onclick=()=>{writeGoogleApiKey('');syncGoogleMapUI();closeModal();toast('Google API key removed from this browser')};
+}
+function setMapProvider(provider){
+ const ui=getTripUI();if(!['google','openfree'].includes(provider))return;
+ if(ui.mapProvider===provider){syncGoogleMapUI();return}
+ if(mapMode!=='navigate')endDrawing();
+ ui.mapProvider=provider;
+ if(provider==='google'&&selectedPlaceId&&tripPlaces().some(p=>p.id===selectedPlaceId)){ui.googlePlaceId=selectedPlaceId;ui.googleMapView='selected'}
+ syncGoogleMapUI();scheduleSave();
+ if(provider==='openfree')requestAnimationFrame(()=>{map?.resize();refreshMap()});
+}
+function updateGoogleSelect(el,id,places,emptyLabel){
+ const old=el.value;el.innerHTML=`<option value="">${esc(emptyLabel)}</option>`+places.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+ el.value=places.some(p=>p.id===id)?id:'';
+}
+function syncGoogleMapUI(){
+ if(!trip())return;
+ const ui=getTripUI(),google=ui.mapProvider==='google';
+ $('mapProvider').value=google?'google':'openfree';
+ $('googleOptions').hidden=!google;
+ $('googleMapContainer').hidden=!google;
+ $('map').hidden=google;document.querySelector('.map-search').classList.toggle('google-hidden',google);$('mapFilter').classList.toggle('google-hidden',google);$('mapFallback').classList.toggle('google-hidden',google);
+ $('mapDrawSurface').classList.toggle('google-hidden',google);$('mapHint').classList.toggle('google-hidden',google);
+ document.querySelector('.map-tools').classList.toggle('google-hidden',google);
+ $('coordsInfo').hidden=google;$('mapCredits').hidden=google;$('googleMapCredits').hidden=!google;
+ $('mapCanvas').classList.toggle('google-active',google);
+ $('searchPlace').disabled=google;$('searchBtn').disabled=google;
+ $('searchPlace').placeholder=google?'Switch to Interactive Map to search or add places':'Search for a place or coordinates…';
+ if(!google){$('googleMapIframe').removeAttribute('src');lastGoogleEmbedUrl='';return}
+ $('searchResults').hidden=true;
+ $('googleViewMode').value=ui.googleMapView;
+ const places=tripPlaces().filter(p=>validCoords(p.lat,p.lng));
+ updateGoogleSelect($('googlePlaceSelect'),ui.googlePlaceId||selectedPlaceId,places,'Choose saved place');
+ updateGoogleSelect($('googleOriginSelect'),ui.googleOriginId,places,'Choose starting place');
+ updateGoogleSelect($('googleDestinationSelect'),ui.googleDestinationId,places,'Choose destination');
+ $('googlePlaceField').hidden=ui.googleMapView!=='selected';
+ $('googleOriginField').hidden=ui.googleMapView!=='directions';
+ $('googleDestField').hidden=ui.googleMapView!=='directions';
+ const byId=id=>places.find(p=>p.id===id),active=byId(ui.googlePlaceId||selectedPlaceId),start=byId(ui.googleOriginId),end=byId(ui.googleDestinationId);
+ let embed='',external='https://www.google.com/maps',errorTitle='',errorMessage='';
+ if(ui.googleMapView==='selected'&&active)external=googleFullMapURL('place',googlePlaceQuery(active));
+ else if(ui.googleMapView==='directions'&&start&&end&&start.id!==end.id)external=googleFullMapURL('directions',googlePlaceQuery(start),googlePlaceQuery(end));
+ else if(trip().destination)external=googleFullMapURL('place',String(trip().destination));
+ const base='https://www.google.com/maps/embed/v1/';
+ const key=`key=${encodeURIComponent(googleApiKey)}`;
+ if(!googleApiKey){errorTitle='Google Maps API key required';errorMessage='Configure a restricted Maps Embed API key to enable the embedded viewer. You can still open Google Maps externally or return to the interactive map.';}
+ else if(ui.googleMapView==='selected'){
+  if(!active){errorTitle='Choose a saved place';errorMessage='Select a place from the dropdown above, or choose a pin in the Places Library.'}
+  else {const q=googlePlaceQuery(active);embed=`${base}place?${key}&q=${encodeURIComponent(q)}`;external=googleFullMapURL('place',q)}
+ } else if(ui.googleMapView==='directions'){
+  if(!start||!end||start.id===end.id){errorTitle='Select two different places';errorMessage='Choose a saved starting place and destination to view directions.'}
+  else {const origin=googlePlaceQuery(start),destination=googlePlaceQuery(end);embed=`${base}directions?${key}&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&mode=driving`;external=googleFullMapURL('directions',origin,destination)}
+ } else {
+  const destination=String(trip().destination||'').trim();
+  const saved=state.prefs.mapViews?.[trip().id];
+  if(destination){embed=`${base}place?${key}&q=${encodeURIComponent(destination)}`;external=googleFullMapURL('place',destination)}
+  else {const lat=validCoords(saved?.lat,saved?.lng)?+saved.lat:51.5074,lng=validCoords(saved?.lat,saved?.lng)?+saved.lng:-0.1278;embed=`${base}view?${key}&center=${encodeURIComponent(`${lat.toFixed(5)},${lng.toFixed(5)}`)}&zoom=10`;external=googleFullMapURL('place',`${lat.toFixed(5)},${lng.toFixed(5)}`)}
+ }
+ $('googleExternalLink').href=external;googleEmbedOpenUrl=external;
+ $('googleMapEmpty').hidden=!errorTitle;
+ $('googleMapEmptyTitle').textContent=errorTitle;
+ $('googleMapEmptyText').textContent=errorMessage;
+ $('googleConfigureBtn').hidden=!!googleApiKey;
+ $('googleEmbedNote').hidden=!!errorTitle;
+ if(embed){if(embed!==lastGoogleEmbedUrl){$('googleMapIframe').src=embed;lastGoogleEmbedUrl=embed}$('googleMapIframe').hidden=false}
+ else {$('googleMapIframe').removeAttribute('src');lastGoogleEmbedUrl='';$('googleMapIframe').hidden=true}
+}
+
 function initMap(){
  if(map)return;
  if(!window.maplibregl){$('mapFallback').hidden=false;mapStatus('Map library could not load. Check internet connection.');return}
@@ -351,7 +445,7 @@ function refreshSelectedMarkerIcons(){for(const [id,m] of markers){m.getElement(
 function placePopup(p){const ev=tripEvents().filter(e=>e.placeId===p.id).sort((a,b)=>a.startAt.localeCompare(b.startAt));return `<div class="popup-title">${esc(p.name)}</div><div class="popup-meta">${esc(p.category)} · ${(+p.lat).toFixed(5)}, ${(+p.lng).toFixed(5)}${p.address?'<br>'+esc(p.address):''}</div><div class="popup-actions"><button data-action="plan-place" data-id="${p.id}">+ Schedule</button><button data-action="edit-place" data-id="${p.id}">Edit pin</button>${ev.length?`<button data-action="open-event" data-id="${ev[0].id}">Open ${ev.length} visit${ev.length!==1?'s':''}</button>`:''}</div>`}
 function focusPlace(id){
  const p=state.places.find(q=>q.id===id&&q.tripId===trip().id);if(!p)return;
- selectedPlaceId=id;refreshMap();
+ selectedPlaceId=id;if(getTripUI().mapProvider==='google'){getTripUI().googleMapView='selected';getTripUI().googlePlaceId=p.id;syncGoogleMapUI();scheduleSave()}refreshMap();
  if(map){map.easeTo({center:asLngLat(p),zoom:Math.max(map.getZoom(),13),duration:450});markers.get(id)?.togglePopup()}
  else toast('Place saved. Live map unavailable.',true);
 }
@@ -360,7 +454,7 @@ function fitAllPins(){
  if(ps.length===1)map.easeTo({center:asLngLat(ps[0]),zoom:14});
  else{const bounds=ps.reduce((acc,p)=>acc.extend(asLngLat(p)),new maplibregl.LngLatBounds(asLngLat(ps[0]),asLngLat(ps[0])));map.fitBounds(bounds,{padding:38,maxZoom:15})}
 }
-function openArea(id){const a=state.areas.find(x=>x.id===id&&x.tripId===trip().id);if(!a)return;state.prefs.selectedAreaId=id;state.prefs.mapFilter='area';scheduleSave();renderAll();refreshMap();fitSelectedArea()}
+function openArea(id){const a=state.areas.find(x=>x.id===id&&x.tripId===trip().id);if(!a)return;if(getTripUI().mapProvider==='google')setMapProvider('openfree');state.prefs.selectedAreaId=id;state.prefs.mapFilter='area';scheduleSave();renderAll();refreshMap();fitSelectedArea()}
 function fitSelectedArea(){const a=selectedArea();if(map&&a){map.fitBounds(boxBounds(a),{padding:28,maxZoom:16});mapStatus(`${a.name} · ${tripPlaces().filter(p=>areaHas(a,p)).length} saved pins`)}}
 function setMode(mode){
  mapMode=mode;document.querySelectorAll('.map-tools .tool-btn').forEach(b=>b.classList.remove('active'));
@@ -387,7 +481,7 @@ function clearSearch(reset=true){$('searchResults').hidden=true;$('searchResults
 function duplicateTrip(){const t=trip();if(!t)return;mutate(()=>{const nt={...clone(t),id:uid(),name:t.name+' (copy)',archived:false,createdAt:new Date().toISOString()};state.trips.push(nt);const idMap=new Map(),catMap=new Map();for(const c of getTripCategories(t.id)){const id=uid();catMap.set(c.id,id);state.categories.push({...clone(c),id,tripId:nt.id})}const places=tripPlaces().map(p=>{const id=uid();idMap.set(p.id,id);return{...clone(p),id,tripId:nt.id}});const evs=tripEvents().map(e=>({...clone(e),id:uid(),tripId:nt.id,placeId:idMap.get(e.placeId)||null,categoryId:catMap.get(e.categoryId)||e.categoryId}));const areas=tripAreas().map(a=>({...clone(a),id:uid(),tripId:nt.id}));state.places.push(...places);state.events.push(...evs);state.areas.push(...areas);state.prefs.tripId=nt.id;state.prefs.selectedAreaId=null});restoreMapView();toast('Trip duplicated')}
 
 function switchDate(n){if(state.prefs.view==='week'){const u=getTripUI();u.startDate=addDays(u.startDate,n*u.visibleDays);state.prefs.selectedDate=u.startDate;scheduleSave();renderAll();refreshMap()}else setPref('selectedDate',addDays(state.prefs.selectedDate,n))}
-function selectEvent(id){const e=state.events.find(x=>x.id===id&&x.tripId===trip().id);if(!e)return;selectedEventId=e.id;state.prefs.selectedDate=e.startAt.slice(0,10);if(state.prefs.view==='week'&&(state.prefs.selectedDate<getTripUI().startDate||state.prefs.selectedDate>addDays(getTripUI().startDate,getTripUI().visibleDays-1)))getTripUI().startDate=state.prefs.selectedDate;if(e.placeId){selectedPlaceId=e.placeId;state.prefs.mapFilter='all'}scheduleSave();renderAll();refreshMap();if(e.placeId)focusPlace(e.placeId)}
+function selectEvent(id){const e=state.events.find(x=>x.id===id&&x.tripId===trip().id);if(!e)return;if(getTripUI().mapProvider==='google'){getTripUI().googleMapView=e.placeId?'selected':'destination';if(e.placeId)getTripUI().googlePlaceId=e.placeId;}selectedEventId=e.id;state.prefs.selectedDate=e.startAt.slice(0,10);if(state.prefs.view==='week'&&(state.prefs.selectedDate<getTripUI().startDate||state.prefs.selectedDate>addDays(getTripUI().startDate,getTripUI().visibleDays-1)))getTripUI().startDate=state.prefs.selectedDate;if(e.placeId){selectedPlaceId=e.placeId;state.prefs.mapFilter='all'}scheduleSave();renderAll();refreshMap();if(e.placeId)focusPlace(e.placeId)}
 
 function assignDropped(item,day,time){if(item.placeId){const p=state.places.find(p=>p.id===item.placeId);if(!p)return;openEventEditor(null,{date:day,time,placeId:p.id});return}if(item.eventId){const e=state.events.find(e=>e.id===item.eventId);if(!e)return;const duration=durationMin(e);mutate(()=>{e.startAt=day+'T'+time;e.endAt=addMinutes(e.startAt,duration);e.updatedAt=new Date().toISOString()});toast('Activity moved')}}
 
@@ -639,6 +733,13 @@ $('addPlaceManual').onclick=()=>openPlaceEditor();$('placeFilter').oninput=rende
 $('searchBtn').onclick=searchMap;$('searchPlace').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();searchMap()}};
 $('mapFilter').onchange=e=>{if(e.target.value==='area'&&!selectedArea()){toast('Select a saved area first');e.target.value=state.prefs.mapFilter;return}setPref('mapFilter',e.target.value)};
 $('navMode').onclick=()=>setMode('navigate');$('pinMode').onclick=()=>setMode('pin');$('areaMode').onclick=()=>setMode('area');$('fitPins').onclick=fitAllPins;
+$('mapProvider').onchange=e=>setMapProvider(e.target.value);
+$('googleViewMode').onchange=e=>{getTripUI().googleMapView=e.target.value;syncGoogleMapUI();scheduleSave()};
+$('googlePlaceSelect').onchange=e=>{getTripUI().googlePlaceId=e.target.value;selectedPlaceId=e.target.value||null;syncGoogleMapUI();scheduleSave()};
+$('googleOriginSelect').onchange=e=>{getTripUI().googleOriginId=e.target.value;syncGoogleMapUI();scheduleSave()};
+$('googleDestinationSelect').onchange=e=>{getTripUI().googleDestinationId=e.target.value;syncGoogleMapUI();scheduleSave()};
+$('googleSetupBtn').onclick=openGoogleSetup;$('googleConfigureBtn').onclick=openGoogleSetup;
+$('googleSwitchBack').onclick=()=>setMapProvider('openfree');
 $('clearArea').onclick=()=>{state.prefs.selectedAreaId=null;state.prefs.mapFilter='all';scheduleSave();renderAll();refreshMap();fitAllPins()};
 $('retryMap').onclick=()=>{if(map){for(const marker of markers.values())marker.remove();markers.clear();map.remove();map=null}initMap()};setupDrawTool();
 $('mobileItinerary').onclick=()=>setMobileTab('itinerary');$('mobilePlaces').onclick=()=>setMobileTab('places');$('mobileMap').onclick=()=>setMobileTab('map');

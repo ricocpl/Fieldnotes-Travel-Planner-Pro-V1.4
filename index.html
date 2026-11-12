@@ -13,7 +13,7 @@
 </head>
 <body>
   <header class="app-header">
-    <div class="brand"><span class="logo">F<span class="logo-dot">•</span></span><div><strong>Fieldnotes</strong><small>TRAVEL PLANNER PRO <b>V1.3</b></small></div></div>
+    <div class="brand"><span class="logo">F<span class="logo-dot">•</span></span><div><strong>Fieldnotes</strong><small>TRAVEL PLANNER PRO <b>V1.4</b></small></div></div>
     <div class="trip-picker"><label for="tripSelect">Trip</label><select id="tripSelect" aria-label="Choose trip"></select><button id="newTrip" class="icon-btn" title="Create trip">＋</button><button id="editTrip" class="icon-btn" title="Edit current trip">✎</button></div>
     <div class="header-actions"><span id="saveStatus" class="save-status">Saved locally</span><button id="undoBtn" class="icon-btn" title="Undo (Ctrl+Z)">↶</button><button id="redoBtn" class="icon-btn" title="Redo (Ctrl+Shift+Z)">↷</button><button id="themeBtn" class="icon-btn" title="Toggle theme">◐</button><button id="categoryManager" class="button subtle header-categories" title="Manage activity categories">Categories</button><button id="exportBtn" class="button secondary">Export / Backup</button><button id="importBtn" class="icon-btn" title="Restore backup">⇧</button><input id="importFile" type="file" accept=".json,.zip,application/json,application/zip" hidden></div>
   </header>
@@ -33,9 +33,26 @@
     </section>
     <div id="splitter" class="splitter" role="separator" aria-orientation="vertical" aria-label="Resize panels" tabindex="0"></div>
     <section id="mapPanel" class="map-panel" aria-label="Interactive map">
-      <div class="map-top"><div class="map-search"><span class="search-icon">⌕</span><input id="searchPlace" aria-label="Search map locations" placeholder="Search for a place or coordinates…"><button id="searchBtn" class="button primary small">Search</button></div><select id="mapFilter" aria-label="Map place filter"><option value="all">All places</option><option value="day">Selected day</option><option value="unscheduled">Unscheduled</option><option value="area">Selected area</option></select></div>
+      <div class="map-top"><label class="map-provider-picker"><span>Map</span><select id="mapProvider" aria-label="Map display provider"><option value="openfree">Interactive Map</option><option value="google">Google Maps</option></select></label><div class="map-search"><span class="search-icon">⌕</span><input id="searchPlace" aria-label="Search map locations" placeholder="Search for a place or coordinates…"><button id="searchBtn" class="button primary small">Search</button></div><select id="mapFilter" aria-label="Map place filter"><option value="all">All places</option><option value="day">Selected day</option><option value="unscheduled">Unscheduled</option><option value="area">Selected area</option></select></div>
+      <div id="googleOptions" class="google-options" hidden>
+        <label>Google view <select id="googleViewMode" aria-label="Google Maps view mode"><option value="destination">Destination</option><option value="selected">Selected place</option><option value="directions">Directions</option></select></label>
+        <label id="googlePlaceField" hidden>Place <select id="googlePlaceSelect" aria-label="Choose saved place for Google Maps"></select></label>
+        <label id="googleOriginField" hidden>From <select id="googleOriginSelect" aria-label="Directions starting place"></select></label>
+        <label id="googleDestField" hidden>To <select id="googleDestinationSelect" aria-label="Directions destination"></select></label>
+        <button id="googleSetupBtn" class="button subtle small" type="button">⚙ API Setup</button>
+        <a id="googleExternalLink" class="button subtle small" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps" title="Open this location in Google Maps">↗ Open Maps</a>
+      </div>
       <div class="map-canvas" id="mapCanvas">
         <div id="map" aria-label="Geographic map"></div>
+        <div id="googleMapContainer" class="google-map-container" hidden>
+          <iframe id="googleMapIframe" title="Google Maps embedded viewer" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen loading="lazy"></iframe>
+          <div id="googleMapEmpty" class="google-map-empty" hidden>
+            <strong id="googleMapEmptyTitle">Configure Google Maps</strong>
+            <p id="googleMapEmptyText">A Maps Embed API key is required. Your existing interactive map remains available.</p>
+            <div class="google-empty-actions"><button id="googleConfigureBtn" type="button" class="button primary small">Configure API key</button><button id="googleSwitchBack" type="button" class="button secondary small">Use Interactive Map</button></div>
+          </div>
+          <div id="googleEmbedNote" class="google-map-note">Google Maps Embed viewer · Custom pins and map area drawing remain in Interactive Map mode.</div>
+        </div>
         <div id="mapFallback" class="map-fallback" hidden><b>Map service unavailable</b><p>Internet access is needed to load MapLibre and OpenFreeMap. Your saved trips, places, areas and itinerary remain available.</p><button id="retryMap" class="button">Retry map</button></div>
         <div id="mapDrawSurface" aria-label="Draw geographic selection rectangle"><div id="mapDrawRect"></div><span class="draw-instructions">Drag to select a geographic area · Esc to cancel</span></div>
         <div class="map-tools"><button id="navMode" class="tool-btn active" title="Navigate map">✥ <span>Navigate</span></button><button id="pinMode" class="tool-btn" title="Click map to add place">⌖ <span>Add pin</span></button><button id="areaMode" class="tool-btn" title="Draw map area">▱ <span>Select Map Area</span></button><button id="fitPins" class="tool-btn" title="Fit visible pins">⤢ <span>Fit pins</span></button></div>
@@ -43,7 +60,7 @@
         <div id="searchResults" class="search-results" hidden></div>
       </div>
       <section class="areas-panel"><div class="areas-heading"><div><b>Saved Map Areas</b> <span id="areaCount" class="count">0</span><p class="meta">Real geographic bounds · Locations stay linked to their coordinates</p></div><button id="clearArea" class="button subtle small">Show all</button></div><div id="areaList" class="area-list"></div><div id="areaPlaces" class="area-places" hidden></div></section>
-      <div class="map-footer"><span id="coordsInfo">Lat — · Lng —</span><span>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a> · MapLibre / OpenFreeMap</span></div>
+      <div class="map-footer"><span id="coordsInfo">Lat — · Lng —</span><span id="mapCredits">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a> · MapLibre / OpenFreeMap</span><span id="googleMapCredits" hidden>Google Maps Embed API · Map imagery and attribution provided by Google</span></div>
     </section>
   </main>
   <nav class="mobile-tabs" aria-label="Mobile tabs"><button id="mobileItinerary" class="active">▤ Itinerary</button><button id="mobilePlaces">☷ Places</button><button id="mobileMap">◎ Map</button></nav>

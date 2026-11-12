@@ -139,3 +139,24 @@
 @media(max-width:430px){.timetable-tools .button{font-size:10px}.export-modal-open .form-grid{grid-template-columns:1fr}.selected-activity-bar{padding:6px}}
 
 .export-preview-page{flex:0 0 auto}
+
+/* V1.4 — optional Google Maps Embed iframe. MapLibre remains the editable geographic canvas. */
+.map-provider-picker{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--muted);flex:0 0 auto}
+.map-provider-picker select{max-width:145px;padding:8px 6px}
+.google-options[hidden],.google-map-container[hidden],.google-map-empty[hidden],#googleMapIframe[hidden],.google-map-note[hidden],#googleConfigureBtn[hidden]{display:none!important}
+.google-options{padding:8px 10px;display:flex;flex-wrap:wrap;align-items:center;gap:7px;border-bottom:1px solid var(--line);background:var(--surface2)}
+.google-options label{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);font-weight:700;min-width:0}
+.google-options label[hidden]{display:none}
+.google-options select{max-width:160px;min-width:120px;font-size:11px;padding:7px}
+.google-options .button{font-size:11px;padding:7px 8px;text-decoration:none;white-space:nowrap}
+#googleExternalLink{margin-left:auto}
+.google-map-container{position:absolute;inset:0;z-index:100;background:var(--surface2);display:flex;align-items:stretch}
+.google-map-container iframe{width:100%;height:100%;border:0;background:#f5f7fa}
+.google-map-empty{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;padding:20px;text-align:center;background:var(--surface2);z-index:2;color:var(--ink)}
+.google-map-empty strong{font-size:16px}
+.google-map-empty p{font-size:12px;max-width:450px;margin:0;color:var(--muted)}
+.google-empty-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.google-map-note{position:absolute;left:12px;right:12px;bottom:10px;max-width:max-content;pointer-events:none;font-size:10px;background:var(--surface);color:var(--muted);border-radius:6px;padding:6px 9px;z-index:1;box-shadow:0 2px 12px #0002}
+#map[hidden],.google-hidden{display:none!important}
+@media(max-width:1150px){.map-top{flex-wrap:wrap}.map-provider-picker{flex:0 1 auto}.map-search{min-width:190px}.google-options select{max-width:125px;min-width:90px}}
+@media(max-width:700px){.map-provider-picker select{max-width:145px}.map-top select{max-width:145px}.google-options label{min-width:0}.google-options .button{padding:6px}.google-options select{max-width:126px}}
