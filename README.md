@@ -1,74 +1,65 @@
-# Fieldnotes Travel Planner Pro V1.1 — Browser Only
+# Fieldnotes Travel Planner Pro V1.3 — Option B
 
-**No Python. No Node.js. No terminal. No account. No installed local server.**
+**Direct browser launch on Windows. No Python, Node.js, installer, terminal command, or local server is required.**
 
-## Start in Edge or Chrome (Windows)
+## Quick start / 開啟方法
 
-1. Unzip the full `Fieldnotes_Travel_Planner_Pro_V1_1_Browser_Only.zip` file.
-2. Keep `index.html`, `styles.css` and `app.js` in the same extracted folder.
-3. **Double-click `index.html`**. The default web browser will open Fieldnotes Travel Planner Pro.
-4. Connect to the internet to display the interactive map or search for places; the app remains local-first.
-5. Before clearing browser data, moving the app to another folder/device or upgrading, choose **Export / Backup → Full JSON Backup**.
+1. Download and **extract the entire ZIP** into a folder.
+2. Keep `index.html`, `app.js`, and `styles.css` in **the same folder**.
+3. Double-click `index.html` and open it with **Microsoft Edge or Chrome**.
+4. Internet is necessary for the existing MapLibre/OpenFreeMap basemap and live place search; the V1.3 timetable editing and PNG rendering use browser APIs.
 
-You do not need to run `start_windows.bat`, `python -m http.server`, npm, or a backend.
+**重要：** 轉版本前，請先喺 V1.2 用 **Export / Backup → Full JSON Backup** 保存資料。然後喺 V1.3 用右上角 **⇧ Restore Backup** 還原。
 
-### Map error shown in V1.0 (HTTP 403)
+Local `file://` storage may be denied or isolated by browsers, versions, device policies, or file paths. Watch the save indicator. Back up before switching folders, clearing browser data, using incognito mode, or moving to another device. The app does not provide cloud sync.
 
-The V1.0 map used `https://tile.openstreetmap.org/{z}/{x}/{y}.png`, which displays a block notice in some contexts because OSM's volunteer-operated public tile service has its own usage policy. The app's saved latitude/longitude coordinates were *not* the cause.
+For iPhone/iPad Safari, use HTTPS static hosting for these three static files. Opening `index.html` from the iOS Files preview is not a reliably supported runtime. No server-side application or Python is needed, but a hosted origin is recommended for persistent storage and service loading.
 
-**V1.1 replaces that raster tile service with:**
+## V1.3 Feature A — Activity colour override
 
-- **Map engine:** MapLibre GL JS 5.24.0 (loaded directly via the browser from the pinned CDN URL).
-- **Map service:** OpenFreeMap / Liberty vector style (`https://tiles.openfreemap.org/styles/liberty`), which does not require an API key or registration for its public instance.
-- **Attribution:** OpenStreetMap contributors and other map provider credits remain available in the map.
+Open an existing activity (select it and press **Edit**, or double-click) or add one with **+ Activity**. The Activity Editor now offers:
 
-The map will require an internet connection and functional access to the CDN and OpenFreeMap domains. A map's inability to load does not delete stored places or itinerary data.
+- **Use category colour** (default; inherits future category colour changes).
+- **Custom override** with 16 selectable swatches, native colour picker, and a `#RRGGBB` hexadecimal input.
+- Live preview, validation, and **Reset to Category Colour**.
 
-## Map Area Selection (real coordinates)
+A custom colour persists when activities are moved, resized, duplicated, backed up, or when their category colour changes. Events migrated from V1.2 with a valid legacy `color` value keep their custom colour. Existing events without a legacy override inherit their category's colour.
 
-1. Pan and zoom the map.
-2. Click **Select Map Area**.
-3. Drag a rectangle; the app converts both corners from screen pixels to WGS84 geographic coordinates by using MapLibre's `map.unproject`.
-4. Name the area and press **Save**.
-5. The Saved Map Areas panel shows the area and the count of saved places within its geographic bounds.
-6. Click an area to reopen it. `fitBounds` zooms to its original real coordinates. Use **Show all** to clear the filter.
-7. Click **Add Pin** or **+ Place** to save locations. Drag markers in Navigate mode to reposition them; linked calendar event IDs stay intact.
+## V1.3 Feature B — Select and Move modes
 
-Map areas are **not screenshots**, and save no underlying map images. Selecting a region does not mass-download or prefetch map data. Boxes that cross the international date line are not supported in this version.
+Above the timetable, use:
 
-## Storage and backups
+- **Select** (default). Click/tap an activity to select and inspect it. The inline details bar offers Edit, Duplicate, Colour, Delete, and Deselect. Dragging in Select mode does not change dates or times. Click an empty time slot, press Escape, or use × to deselect. Double-click/tap twice to edit; Enter on a focused event opens the editor. Delete or Backspace when the activity is selected requests deletion confirmation. Input fields preserve their normal keyboard behaviour.
+- **Move / Resize**. Drag activity bodies to shift start time/day, or drag their upper/lower handles to change duration. V1.2 snapping remains unchanged. Mobile users can always edit the date/time fields directly in the Activity Editor.
 
-- The primary local storage is **IndexedDB**. If IndexedDB is unavailable for this browser/file origin, the app attempts a **localStorage fallback**.
-- Browser storage may be limited or unavailable for local (`file://`) HTML pages, private browsing, restrictive policies, or low device storage; inspect the save indicator at the top. Regular JSON backups are essential.
-- The browser-native JSON backup contains trip records, places, itinerary events, saved map-area bounds, settings and stable IDs.
-- **Restore from old V1.0 data:** Open V1.0 using the *same* address/origin that was used previously. Export **Full JSON Backup**. Then open V1.1 and use the **⇧ Restore Backup** button to import the `.json` file. This is particularly important when migrating from `http://localhost` to `file://`, because these are different browser storage origins.
-- JSON backup works without additional libraries. ZIP backup requires fetching JSZip from a CDN when first used. Print and ICS exports are browser-native.
-- **No cloud synchronisation.** Browser storage is specific to the device, browser profile and origin.
+The last interaction mode is saved per trip. Data edits, undo/redo, map/calendar links and original activity metadata are preserved.
 
-## iPhone and other mobile browsers
+## V1.3 Feature C — Timetable PNG / PDF / Print
 
-The interface is responsive and offers Map / Itinerary tabs, but **opening local HTML directly from iOS Files is not a reliable way to use a modern web app**. For iPhone, host the same static HTML, CSS and JS files through an HTTPS static host (e.g. GitHub Pages). Such hosting requires **no Python runtime or application backend**. The map still requires internet, and storage is browser-/origin-specific. Mobile map interaction should be tested on the target iPhone before relying on it.
+Use the **PNG** or **PDF** toolbar control to open the timetable export dialog, or access it through **Export / Backup → Timetable PNG / PDF / Print**.
 
-## Full feature summary
+Settings include:
 
-- Multiple trips; create, edit, duplicate and archive.
-- Day / Week / Agenda itinerary, event editing and drag-and-drop scheduling.
-- Independent Places Library with geographic coordinates, notes and scheduling links.
-- Saved geospatial rectangles with automatic bounds fitting and area filtering.
-- Day-based pin highlighting/filtering, manual pin creation, and optional place search (submitted manually via Nominatim).
-- Browser IndexedDB/localStorage, JSON/ZIP import and export, ICS, print-to-PDF, undo/redo, themes, resizable panels.
+- Scope: current visible timetable, chosen date range, or entire trip.
+- Paper: A4, A3, Letter; portrait or landscape.
+- Scale/density: Fit to Width, Fit to Page, or custom density percentage (60–160%). Adjusting density changes the number of day columns per sheet to keep them legible.
+- Optional trip title, dates, category legend, activity notes appendix, and print date.
+- Scrolling on-screen preview of the first 15 pages (if more, **all** pages are still included in export).
 
-## Limitations and policy notes
+**Download PNG** generates an actual `.png` image using the same vector timetable as preview. Several timetable pages are stacked into one image, with multi-image ZIP (requires the existing JSZip CDN) for large ranges. If ZIP is unavailable, the browser attempts separate PNG-part downloads; it may ask permission to download multiple files. PNG/PDF never include the map or map tiles.
 
-- V1.1 does not include real-time routing, travel time estimates, paid API geocoding, offline map tiles, or cloud sharing.
-- OpenFreeMap is provided by a third party and has no guarantee of continued availability; consider a dedicated provider if publishing for high-volume or commercial use.
-- Public Nominatim limits usage and may reject browser `file://`/opaque-origin requests in some browsers. Use manually entered coordinates if search is unavailable, or deploy to HTTPS with a suitable geocoding provider for reliable shared usage. Do not implement disallowed autocomplete or bulk requests.
-- Browser-origin storage and live vector map access from `file://` can differ by OS, browser security settings and local policy. The app itself has no backend requirement, but online map services still impose browser/network constraints.
-- This release has been checked through JavaScript syntax validation and browser-interaction simulation with a stubbed map engine. It has **not** been end-to-end verified against the live OpenFreeMap service from this isolated test environment. See `TEST_RESULTS.md`.
+**Print / Save as PDF** opens a **dedicated, print-only browser tab** and launches the system print dialog. Choose **Save as PDF** as your destination to get a PDF. PDF saving is **not automatic**; the browser controls the final save. Page size, orientation, column pagination, event colours and overlaps follow the preview. The optional notes appendix includes full user-entered activity notes. Very short or unusually long-title activities also receive a supplementary detail list if their grid labels cannot fit readably.
 
-**Relevant services:**
+The export operation does not alter your trip dates, timetable view, calendar event positions, map or panels.
 
-- https://openfreemap.org/
-- https://maplibre.org/maplibre-gl-js/docs/
-- https://operations.osmfoundation.org/policies/tiles/
-- https://operations.osmfoundation.org/policies/nominatim/
+## Browser and functionality notes
+
+- All V1.2 timetable / category / workspace / Places Library / map functions are retained. **No V1.3 map engine or provider changes.**
+- Printing must be allowed to open a new tab / popup. If blocked, enable pop-ups for the app page then try again.
+- Some printers may need **Print backgrounds** enabled to preserve solid colour blocks, depending on the browser/print destination; print CSS requests exact colours.
+- All generated dates/times are based on the trip's saved local date/time fields, without pretending to fetch live travel data.
+- Maximum single export range: 366 days to avoid browser memory/performance overload. Large exports may require ZIP packaging or permission to download multiple images.
+- Browser-only file launch and full persistence after reload were **not verified** under an unrestricted desktop browser environment here: the isolated test runner blocks `file://` navigation and cross-origin map networking. Direct UI, PDF and PNG logic were tested in an isolated browser page using the same JavaScript.
+- No new external JavaScript libraries were added for PNG or PDF. Existing MapLibre CDN and optional JSZip for ZIP backups/paged PNGs remain as in V1.2.
+
+Read `CHANGELOG_V1_3.md` and `TEST_RESULTS_V1_3.md` for exact changes, migration and validation.
